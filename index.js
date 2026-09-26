@@ -1,45 +1,49 @@
 const { Telegraf } = require('telegraf');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const axios = require('axios');
-const http = require('http');
+const Anthropic = require('@anthropic-ai/sdk');
 
-// Токен бота Telegram и бесплатный API-ключ нейросети Gemini
-const bot = new Telegraf('8663574409:AAHg6SbhcZVtAz0mcL8Fdo0NZHqpzSTrUZ4');
-const ai = new GoogleGenerativeAI('AIzaSyD-' + 'YOUR_KEY_HERE_IF_NEEDED'); 
-// Мы используем публичный режим разбора текста, для полноценной работы без ограничений встроим ключ
-
-bot.start((ctx) => {
-  ctx.reply(`📚 Привет, ${ctx.from.first_name}! Я твой ИИ-помощник по ГДЗ.\n\nПросто отправь мне текст задачи или ЖИВОЕ ФОТО примера/теста из учебника, и я выдам тебе полное пошаговое решение!`);
+// 1. Подключение ключей из настроек Render
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// Обработка текстовых вопросов
+// 2. Приветствие при старте
+bot.start((ctx) => ctx.reply('Привет! Пришли мне текст домашнего задания, и я помогу его решить.'));
+
+// 3. Отправка задания в ИИ Anthropic (Claude)
 bot.on('text', async (ctx) => {
   try {
-    ctx.reply('🤔 Думаю над решением, подожди пару секунд...');
-    // Отправляем текстовый запрос в ИИ модель
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = `Ты — профессиональный школьный учитель и помощник ГДЗ. Реши задачу и распиши её максимально понятно, пошагово, на русском языке: ${ctx.message.text}`;
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    ctx.reply(response.text());
+    // Показываем статус "печатает..." в Telegram
+    await ctx.sendChatAction('typing');
+
+    // Отправляем запрос в Claude
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-latest',
+      max_tokens: 2000,
+      temperature: 0.5,
+      system: 'Ты — опытный школьный учитель. Подробно и понятно решай домашние задания.',
+      messages: [{ role: 'user', content: ctx.message.text }],
+    });
+
+    // Отправляем решение пользователю
+    await ctx.reply(response.content[0].text);
+
   } catch (error) {
-    ctx.reply('🤖 Я получил твой вопрос! Чтобы я мог присылать детальные разборы прямо сейчас, нам нужно активировать бесплатный ключ ИИ Google API в коде.');
+    console.error(error);
+    await ctx.reply(`Произошла ошибка: ${error.message}`);
   }
 });
 
-// Обработка фотографий задач
-bot.on('photo', async (ctx) => {
-  ctx.reply('📸 Вижу фотографию задания! Начинаю распознавание и поиск решения...');
-  ctx.reply('💡 Для полноценного чтения картинок и формул нам осталось подключить бесплатный ключ API от нейросети в коде бота.');
-});
-
-bot.launch();
-console.log('ГДЗ ИИ Бот запущен');
-
-// Заглушка порта для Render
-const server = http.createServer((req, res) => {
+// 4. Защита от отключения бесплатного тарифа Render (встроенный мини-сервер)
+const http = require('http');
+const port = process.env.PORT || 10000;
+http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Gdz Bot is OK\n');
-});
-server.listen(process.env.PORT || 3000);
+  res.end('Bot is running');
+}).listen(port, '0.0.0.0');
+
+// Запуск бота
+bot.launch();
+
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
