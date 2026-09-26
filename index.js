@@ -1,0 +1,1 @@
+const { Telegraf } = require('telegraf'); const bot = new Telegraf('8663574409:AAHg6SbhcZVtAz0mcL8Fdo0NZHqpzSTrUZ4'); bot.start((ctx) => ctx.reply('Привет')); bot.help((ctx) => ctx.reply('Помощь')); bot.on('text', (ctx) => ctx.reply(`Вы сказали: ${ctx.message.text}`)); bot.launch(); console.log('Бот успешно запущен');
