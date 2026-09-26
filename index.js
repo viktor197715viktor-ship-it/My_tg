@@ -14,11 +14,12 @@ bot.on('text', async (ctx) => {
     // Показываем статус "печатает..." в Telegram
     await ctx.sendChatAction('typing');
 
-    // Отправляем запрос в нейросеть Gemini 2.5 Flash
+        // Отправляем запрос в нейросеть Gemini 3.8 Flash
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       contents: `Ты — опытный школьный учитель. Подробно, пошагово и понятно реши домашнее задание: ${ctx.message.text}`,
     });
+
 
     // Отправляем решение пользователю
     await ctx.reply(response.text);
