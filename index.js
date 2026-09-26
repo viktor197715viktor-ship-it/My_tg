@@ -1,32 +1,27 @@
 const { Telegraf } = require('telegraf');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenAI } = require('@google/genai');
 
 // 1. Подключение ключей из настроек Render
 const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // 2. Приветствие при старте
-bot.start((ctx) => ctx.reply('Привет! Пришли мне текст домашнего задания, и я помогу его решить.'));
+bot.start((ctx) => ctx.reply('Привет! Я твой бесплатный помощник с домашним заданием на базе Gemini. Пришли мне текст задания, и я его решу.'));
 
-// 3. Отправка задания в ИИ Anthropic (Claude)
+// 3. Отправка задания в ИИ Google Gemini
 bot.on('text', async (ctx) => {
   try {
     // Показываем статус "печатает..." в Telegram
     await ctx.sendChatAction('typing');
 
-    // Отправляем запрос в Claude
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-latest',
-      max_tokens: 2000,
-      temperature: 0.5,
-      system: 'Ты — опытный школьный учитель. Подробно и понятно решай домашние задания.',
-      messages: [{ role: 'user', content: ctx.message.text }],
+    // Отправляем запрос в нейросеть Gemini 2.5 Flash
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `Ты — опытный школьный учитель. Подробно, пошагово и понятно реши домашнее задание: ${ctx.message.text}`,
     });
 
     // Отправляем решение пользователю
-    await ctx.reply(response.content[0].text);
+    await ctx.reply(response.text);
 
   } catch (error) {
     console.error(error);
@@ -34,7 +29,7 @@ bot.on('text', async (ctx) => {
   }
 });
 
-// 4. Защита от отключения бесплатного тарифа Render (встроенный мини-сервер)
+// 4. Защита от отключения бесплатного тарифа Render
 const http = require('http');
 const port = process.env.PORT || 10000;
 http.createServer((req, res) => {
