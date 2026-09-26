@@ -6,7 +6,7 @@ const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // 2. Приветствие при старте
-bot.start((ctx) => ctx.reply('Привет! Я твой бесплатный помощник с домашним заданием на базе Gemini. Пришли мне текст задания, и я его решу.'));
+bot.start((ctx) => ctx.reply('Привет! Я твой бесплатный помощник с домашним заданием. Пришли мне текст задания, и я его решу.'));
 
 // 3. Отправка задания в ИИ Google Gemini
 bot.on('text', async (ctx) => {
