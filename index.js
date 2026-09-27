@@ -36,30 +36,23 @@ bot.use((ctx, next) => {
   return next()
 })
 
-bot.start((ctx) => ctx.reply('Кидай домашку'))
+bot.start((ctx) => ctx.reply('отправь мне фото или текст я тебе быстро все решу'))
+
 bot.on('message', async (ctx) => {
   try {
     if (ctx.message.text?.startsWith('/')) return
     await ctx.sendChatAction('typing')
     totalRequests++
     let res
+
+    // ВОТ СЮДА ВСТАВИЛ БЫСТРУЮ МОДЕЛЬ - ДЛЯ ФОТО
     if (ctx.message.photo) {
       const fileId = ctx.message.photo.pop().file_id
       const link = await ctx.telegram.getFileLink(fileId)
       const buf = Buffer.from(await (await fetch(link.href)).arrayBuffer())
       res = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.0-flash-lite', // <-- БЫСТРАЯ МОДЕЛЬ ТУТ
         contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'image/jpeg', data: buf.toString('base64') } }, { text: 'Реши кратко на русском' }] }]
       })
     } else {
-      res = await ai.models.generateContent({ model: 'gemini-1.5-flash', contents: ctx.message.text })
-    }
-    ctx.reply((res.text || 'нет ответа').slice(0, 4000))
-  } catch (e) {
-    console.error(e)
-    ctx.reply('Ошибка: ' + e.message.slice(0,200))
-  }
-})
-
-http.createServer((_, r) => { r.end('ok') }).listen(process.env.PORT || 10000, '0.0.0.0')
-bot.launch().then(() => console.log('Запущен'))
+      // И ВОТ СЮДА - ДЛЯ ТЕКСТА
