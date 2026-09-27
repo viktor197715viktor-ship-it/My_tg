@@ -43,7 +43,7 @@ bot.on(['text', 'photo', 'document'], async (ctx) => {
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-lite',
+      model: 'gemini-3.5-flash-lite',
       config: {
         systemInstruction: "Ты — лаконичный школьный помощник. Отвечай кратко и понятно, без воды и приветствий. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать LaTeX, знаки доллара, команды \\times, \\frac. Пиши математику только обычным текстом.",
       },
