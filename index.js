@@ -49,8 +49,12 @@ bot.command('remove', (ctx) => {
 })
 
 // --- УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК (оставил твой) ---
-bot.on(['text','photo','document'], async (ctx) => {
+    bot.on(['text','photo','document'], async (ctx) => {
   if (ctx.message.text?.startsWith('/')) return
+
+  const check = canUse(ctx.from.id)
+  if (!check.ok) return ctx.reply('❌ Лимит 20 в день кончился')
+
   try {
     await ctx.sendChatAction('typing')
     let contents
