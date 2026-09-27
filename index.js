@@ -78,8 +78,11 @@ bot.command('remove', (ctx) => {
     } else {
       contents = ctx.message.text
     }
-    const result = await ai.models.generateContent({ model: 'gemini-3.5-flash-lite', contents: contents })
-    let text = result.text.replace(/\$/g, '').slice(0,4000)
+    const result = await ai.models.generateContent({
+  model: 'gemini-3.5-flash',
+  contents: [{ role: 'user', parts: [{ text: "Отвечай ТОЛЬКО обычным текстом. ЗАПРЕЩЕНО использовать LaTeX, \\times, \\cdot, \\begin, $, {array}. Пиши знак умножения как x или *. Задание: " + contents }] }]
+})
+let text = result.text.replace(/\\times/g,'x').replace(/\\cdot/g,'*').replace(/\\[a-z]+/g,'').replace(/[\$\\{}]/g,'').replace(/{array}/g,'')
     // Если не премиум - ограничение
     if (!premium.has(ctx.from.id)) text = text.slice(0,1000) + '\n\n⭐ Купи премиум для полных ответов'
     ctx.reply(text, { parse_mode: 'Markdown' })
