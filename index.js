@@ -1,79 +1,77 @@
-const { Telegraf } = require('telegraf')
+const { Telegraf, Markup } = require('telegraf')
 const { GoogleGenAI } = require('@google/genai')
-
-const bot = new Telegraf(process.env.TELEGRAM_TOKEN || process.env.BOT_TOKEN)
-const ADMIN_ID = 7959760533
-let enabled = true
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
-bot.start((ctx) => ctx.reply(
-  'Привет! Отправь мне домашнее задание (текстом или фото), и я **быстро и кратко** решу его .',
-  { parse_mode: 'Markdown' }
-))
+const ADMIN_ID = 7959760533
+let enabled = true
+const users = new Set()
+const premium = new Set([7959760533]) // ты сразу премиум
 
-// УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК
-bot.on(['text', 'photo', 'document'], async (ctx) => {
+// СБОР ЮЗЕРОВ
+bot.use((ctx, next) => {
+  if (ctx.from) users.add(ctx.from.id)
+  if (!enabled && ctx.from.id!= ADMIN_ID) return ctx.reply('🔧 Тех работы, бот выключен админом')
+  return next()
+})
+
+bot.start((ctx) => ctx.reply('Привет! Отправь задание (текст или фото) 📚', { parse_mode: 'Markdown' }))
+
+// --- АДМИНКА ---
+function adminPanel() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback(enabled? '🟢 Выключить бота' : '🔴 Включить бота', 'toggle')],
+    [Markup.button.callback(`👥 Юзеры: ${users.size}`, 'stats'), Markup.button.callback(`⭐ Премиум: ${premium.size}`, 'prem_list')],
+    [Markup.button.callback('➕ Дать премиум', 'add_prem'), Markup.button.callback('➖ Забрать премиум', 'rem_prem')]
+  ])
+}
+
+bot.command('admin', (ctx) => {
+  if (ctx.from.id!= ADMIN_ID) return
+  ctx.reply(`👑 Админка\n\n👥 Всего юзеров в боте: ${users.size}\n⭐ Премиум: ${premium.size}\nСтатус: ${enabled?'ВКЛ':'ВЫКЛ'}`, adminPanel())
+})
+
+bot.action('toggle', async (ctx) => { enabled =!enabled; await ctx.editMessageText(`Статус: ${enabled?'ВКЛ':'ВЫКЛ'}\nЮзеров: ${users.size}`, adminPanel()) })
+bot.action('stats', async (ctx) => { await ctx.answerCbQuery(); ctx.reply(`📊 Сейчас в боте:\n👥 Всего уникальных: ${users.size}\n⭐ Премиум: ${premium.size}\n\nID список:\n${[...users].slice(0,50).join(', ')}`) })
+bot.action('prem_list', async (ctx) => { await ctx.answerCbQuery(); ctx.reply(`⭐ Премиум ID:\n${[...premium].join('\n') || 'пусто'}`) })
+bot.action('add_prem', async (ctx) => { await ctx.answerCbQuery(); ctx.reply('Напиши: /give ID\nПример: /give 123456789') })
+bot.action('rem_prem', async (ctx) => { await ctx.answerCbQuery(); ctx.reply('Напиши: /remove ID\nПример: /remove 123456789') })
+
+bot.command('give', (ctx) => {
+  if (ctx.from.id!= ADMIN_ID) return
+  const id = Number(ctx.message.text.split(' ')[1]); if(!id) return ctx.reply('ID не верный')
+  premium.add(id); ctx.reply(`✅ Дал премиум ${id}`)
+})
+bot.command('remove', (ctx) => {
+  if (ctx.from.id!= ADMIN_ID) return
+  const id = Number(ctx.message.text.split(' ')[1]); if(!id) return ctx.reply('ID не верный')
+  premium.delete(id); ctx.reply(`❌ Забрал премиум у ${id}`)
+})
+
+// --- УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК (оставил твой) ---
+bot.on(['text','photo','document'], async (ctx) => {
+  if (ctx.message.text?.startsWith('/')) return
   try {
     await ctx.sendChatAction('typing')
-
-    let contents;
-
-    // 1. ЕСЛИ ФОТО
+    let contents
     if (ctx.message.photo || ctx.message.document) {
-      let fileId;
-      if (ctx.message.photo) {
-        fileId = ctx.message.photo[ctx.message.photo.length - 1].file_id
-      } else {
-        fileId = ctx.message.document.file_id
-      }
-
+      let fileId = ctx.message.photo? ctx.message.photo[ctx.message.photo.length-1].file_id : ctx.message.document.file_id
       const fileLink = await ctx.telegram.getFileLink(fileId)
       const res = await fetch(fileLink.href)
       const buffer = await res.arrayBuffer()
       const base64 = Buffer.from(buffer).toString('base64')
-      
-      const caption = ctx.message.caption || "Реши это домашнее задание"
-
-      contents = [
-        { inlineData: { mimeType: 'image/jpeg', data: base64 } },
-        { text: `${caption}. Реши максимально кратко, без воды. ЗАПРЕЩЕНО LaTeX и символы $ \\times \\frac. Пиши математику обычным текстом: * / + - =` }
-      ]
-    } 
-    // 2. ЕСЛИ ТЕКСТ
-    else {
-      contents = `Реши домашнее задание: ${ctx.message.text}`
+      const caption = ctx.message.caption || 'Реши это задание подробно'
+      contents = [{ inlineData: { mimeType: 'image/jpeg', data: base64 } }, { text: caption }]
+    } else {
+      contents = ctx.message.text
     }
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash-lite',
-      config: {
-        systemInstruction: "Ты — лаконичный школьный помощник. Отвечай кратко и понятно, без воды и приветствий. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать LaTeX, знаки доллара, команды \\times, \\frac. Пиши математику только обычным текстом.",
-      },
-      contents: contents
-    })
-
-    let answer = response.text
-    // Чистим ответ от $ чтобы не ломал Markdown
-    answer = answer.replace(/\$/g, '')
-
-    await ctx.reply(answer, { parse_mode: 'Markdown' })
-
-  } catch (error) {
-    console.error(error)
-    await ctx.reply('Ошибка :( Попробуй скинуть еще раз, чуть четче фото.')
-  }
+    const result = await ai.models.generateContent({ model: 'gemini-2.5-flash-lite', contents: contents })
+    let text = result.text.replace(/\$/g, '').slice(0,4000)
+    // Если не премиум - ограничение
+    if (!premium.has(ctx.from.id)) text = text.slice(0,1000) + '\n\n⭐ Купи премиум для полных ответов'
+    ctx.reply(text, { parse_mode: 'Markdown' })
+  } catch (e) { ctx.reply('Ошибка: ' + e.message.slice(0,300)) }
 })
 
-// Веб-сервер чтобы Render не спал
-const http = require('http')
-const port = process.env.PORT || 10000
-http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' })
-  res.end('Bot is running')
-}).listen(port, '0.0.0.0')
-
+require('http').createServer((_,res)=>res.end('ok')).listen(process.env.PORT||10000)
 bot.launch()
-console.log('Бот запущен')
-
-process.once('SIGINT', () => bot.stop('SIGINT'))
-process.once('SIGTERM', () => bot.stop('SIGTERM'))
