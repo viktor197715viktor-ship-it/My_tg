@@ -1,6 +1,6 @@
 const { Telegraf, Markup } = require('telegraf')
 const { GoogleGenAI } = require('@google/genai')
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN)
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN || process.env.BOT_TOKEN)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
 const ADMIN_ID = 7959760533
