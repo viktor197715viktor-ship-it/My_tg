@@ -6,7 +6,7 @@
   "dependencies": {
     "telegraf": "^4.16.3",
     "sqlite3": "^5.1.7",
-    "@google/genai": "^0.1.1"
+    "@google/genai": "^2.24.0"
   },
   "scripts": {
     "start": "node index.js"
