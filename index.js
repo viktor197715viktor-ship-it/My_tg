@@ -89,11 +89,10 @@ bot.command('off', (ctx) => {
   botEnabled = false
   ctx.reply('❌ Бот выключен для всех')
 })
-bot.command('stats', (ctx) => {
-  if (!isAdmin(ctx)) return
-  ctx.reply(`Статус: ${botEnabled ? 'включен ✅' : 'выключен ❌'}`)
-})
-
+bot.command('admin', (ctx) => {
+  if (!isAdmin(ctx)) return;
+  ctx.reply(`🔧 Панель управления Разработчика:\n/on - включить бота\n/off - выключить бота\n/stats - проверить статус\n/grant [ID] - выдать премиум`);
+});
 // Ручная выдача премиума администратором (/grant ID)
 bot.command('grant', async (ctx) => {
     if (!isAdmin(ctx)) return
@@ -132,7 +131,7 @@ bot.start(async (ctx) => {
     const user = await getUser(ctx.from.id)
     let status = user.is_premium ? "✨ У вас безлимитный Premium-поиск!" : `Вам доступно ${user.searches_left} бесплатных запросов на сегодня.`
     ctx.reply(`Привет! Скинь домашку фото или текстом\n\n${status}`)
-})
+}'
 
 // --- ОСНОВНАЯ ЛОГИКА ОБРАБОТКИ ЗАПРОСОВ ---
 bot.on(['text', 'photo', 'document'], async (ctx) => {
