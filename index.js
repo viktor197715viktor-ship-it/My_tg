@@ -1,50 +1,77 @@
 const { Telegraf } = require('telegraf')
 const { GoogleGenAI } = require('@google/genai')
 
-// 1. Подключение ключей из настроек Render / Экосреды
-const bot = new Telegraf(process.env.TELEGRAM_TOKEN)
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
-// 2. Приветствие при старте
 bot.start((ctx) => ctx.reply(
-  'Привет! Отправь мне домашнее задание, и я **быстро и кратко** решу его без лишней «воды».', 
+  'Привет! Отправь мне домашнее задание (текстом или фото), и я **быстро и кратко** решу его без лишней «воды».',
   { parse_mode: 'Markdown' }
 ))
 
-// 3. Отправка задания в ИИ Google Gemini
-bot.on('text', async (ctx) => {
+// УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК
+bot.on(['text', 'photo', 'document'], async (ctx) => {
   try {
-    // Показываем статус "печатает..." в Telegram
-    await ctx.sendChatAction('typing');
+    await ctx.sendChatAction('typing')
 
-    // Отправляем запрос в нейросеть с жесткими системными правилами
+    let contents;
+
+    // 1. ЕСЛИ ФОТО
+    if (ctx.message.photo || ctx.message.document) {
+      let fileId;
+      if (ctx.message.photo) {
+        fileId = ctx.message.photo[ctx.message.photo.length - 1].file_id
+      } else {
+        fileId = ctx.message.document.file_id
+      }
+
+      const fileLink = await ctx.telegram.getFileLink(fileId)
+      const res = await fetch(fileLink.href)
+      const buffer = await res.arrayBuffer()
+      const base64 = Buffer.from(buffer).toString('base64')
+      
+      const caption = ctx.message.caption || "Реши это домашнее задание"
+
+      contents = [
+        { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+        { text: `${caption}. Реши максимально кратко, без воды. ЗАПРЕЩЕНО LaTeX и символы $ \\times \\frac. Пиши математику обычным текстом: * / + - =` }
+      ]
+    } 
+    // 2. ЕСЛИ ТЕКСТ
+    else {
+      contents = `Реши домашнее задание: ${ctx.message.text}`
+    }
+
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       config: {
-        systemInstruction: "Ты — лаконичный школьный помощник. Твоя цель — давать ответы максимально кратко и понятно, без «воды» и длинных приветствий. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать разметку LaTeX, знаки доллара (\$) и команды вроде \(\times, \frac.\) Пиши математические знаки только обычным текстом (например: *, /, +, -, =). Описывай шаги решения короткими строчками.",
+        systemInstruction: "Ты — лаконичный школьный помощник. Отвечай кратко и понятно, без воды и приветствий. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать LaTeX, знаки доллара, команды \\times, \\frac. Пиши математику только обычным текстом.",
       },
-      contents: `Реши домашнее задание: ${ctx.message.text}`
-    });
+      contents: contents
+    })
 
-    // Отправляемый ответ пользователю с поддержкой Markdown
-    await ctx.reply(response.text, { parse_mode: 'Markdown' });
+    let answer = response.text
+    // Чистим ответ от $ чтобы не ломал Markdown
+    answer = answer.replace(/\$/g, '')
+
+    await ctx.reply(answer, { parse_mode: 'Markdown' })
 
   } catch (error) {
-    console.error(error);
-    await ctx.reply('Произошла ошибка при обработке вашего запроса.');
+    console.error(error)
+    await ctx.reply('Ошибка :( Попробуй скинуть еще раз, чуть четче фото.')
   }
-});
+})
 
-// 4. Защита от отключения бесплатного тарифа (Веб-сервер для пинга)
-const http = require('http');
-const port = process.env.PORT || 10000;
+// Веб-сервер чтобы Render не спал
+const http = require('http')
+const port = process.env.PORT || 10000
 http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Bot is running');
-}).listen(port, '0.0.0.0');
+  res.writeHead(200, { 'Content-Type': 'text/plain' })
+  res.end('Bot is running')
+}).listen(port, '0.0.0.0')
 
-// Запуск бота
-bot.launch();
+bot.launch()
+console.log('Бот запущен')
 
 process.once('SIGINT', () => bot.stop('SIGINT'))
 process.once('SIGTERM', () => bot.stop('SIGTERM'))
