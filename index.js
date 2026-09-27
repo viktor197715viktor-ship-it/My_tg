@@ -31,7 +31,19 @@ db.serialize(() => {
             last_search_date TEXT
         )
     `)
-})
+if (!row) {
+    // Если пользователя нет в базе, создаем его с 10 попытками и текущей датой
+    db.run('INSERT INTO users (user_id, searches_left, last_search_date) VALUES (?, ?, ?)', [userId, MAX_FREE_ATTEMPTS, today]);
+    
+    // НАЧАЛО НОВОГО КОДА: Уведомление админа
+    const userName = ctx.from?.first_name || 'Инкогнито';
+    const userTag = ctx.from?.username ? `@${ctx.from.username}` : 'нет юзернейма';
+    bot.telegram.sendMessage(ADMIN_ID, `🆕 <b>Новый пользователь в боте!</b>\nИмя: ${userName}\nЮзернейм: ${userTag}\nID: <code>${userId}</code>`, { parse_mode: 'HTML' }).catch(() => {});
+    // КОНЕЦ НОВОГО КОДА
+
+    resolve({ searches_left: MAX_FREE_ATTEMPTS, is_premium: 0 });
+}
+
 
 // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ЕЖЕДНЕВНЫХ ЛИМИТОВ ---
 const getUser = (userId) => {
