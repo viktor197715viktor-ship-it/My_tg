@@ -5,11 +5,12 @@
   "scripts": {
     "start": "node index.js"
   },
-   // 2. Приветствие при старте
-bot.start((ctx) => ctx.reply(
-  'Привет! Отправь мне домашнее задание, и я **быстро и кратко** решу его без лишней «воды».', 
-  { parse_mode: 'Markdown' }
-))
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "@google/genai": "*"
+  }
+}
+
 
 
  
