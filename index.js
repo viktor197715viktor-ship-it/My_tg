@@ -78,7 +78,7 @@ bot.command('remove', (ctx) => {
     } else {
       contents = ctx.message.text
     }
-    const result = await ai.models.generateContent({ model: 'gemini-2.5-flash-lite', contents: contents })
+    const result = await ai.models.generateContent({ model: 'gemini-3.5-flash-lite', contents: contents })
     let text = result.text.replace(/\$/g, '').slice(0,4000)
     // Если не премиум - ограничение
     if (!premium.has(ctx.from.id)) text = text.slice(0,1000) + '\n\n⭐ Купи премиум для полных ответов'
