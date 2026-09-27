@@ -1,16 +1,14 @@
 {
-  "name": "my-tg-bot",
+  "name": "tg-my-bot",
   "version": "1.0.0",
+  "description": "Telegram bot with search limits",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
+  "type": "module",
   "dependencies": {
     "telegraf": "^4.16.3",
-    "@google/genai": "*"
+    "sqlite3": "^5.1.7"
+  },
+  "scripts": {
+    "start": "node index.js"
   }
 }
-
-
-
- 
