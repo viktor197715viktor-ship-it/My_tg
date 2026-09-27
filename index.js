@@ -51,7 +51,7 @@ bot.on('message', async (ctx) => {
       const link = await ctx.telegram.getFileLink(fileId)
       const buf = Buffer.from(await (await fetch(link.href)).arrayBuffer())
       res = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-lite', // <-- БЫСТРАЯ МОДЕЛЬ ТУТ
+        model: 'gemini-2.5-flash-lite', // <-- БЫСТРАЯ МОДЕЛЬ ТУТ
         contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'image/jpeg', data: buf.toString('base64') } }, { text: 'Реши кратко на русском' }] }]
       })
     } else {
