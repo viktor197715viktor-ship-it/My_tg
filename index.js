@@ -8,7 +8,7 @@ const bot = new Telegraf(process.env.TELEGRAM_TOKEN || process.env.BOT_TOKEN || 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
 const ADMIN_ID = 7959760533
-const SECRET_CODE = 'VIP2026' // Промокод для пользователей
+const SECRET_CODE = 'GEMINI-X99_🔥_d7b8a2c4e1','vip2012' // Промокод для пользователей
 const MAX_FREE_ATTEMPTS = 10  // Лимит бесплатных запросов в день
 
 const isAdmin = (ctx) => ctx.from?.id === ADMIN_ID
