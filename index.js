@@ -2,8 +2,7 @@ const { Telegraf } = require('telegraf')
 const { GoogleGenAI } = require('@google/genai')
 
 // 1. Подключение ключей из настроек Render / Экосреды
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || process.env.TELE_TOKEN || process.env.TOKEN);
-
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
 // 2. Приветствие при старте
