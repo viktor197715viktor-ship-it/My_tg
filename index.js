@@ -2,68 +2,43 @@ const { Telegraf } = require('telegraf')
 const { GoogleGenAI } = require('@google/genai')
 const http = require('http')
 
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || process.env.TELEGRAM_TOKEN)
+if (!process.env.TELEGRAM_TOKEN && !process.env.BOT_TOKEN) {
+  console.error('НЕТ TELEGRAM_TOKEN!')
+}
+if (!process.env.GEMINI_API_KEY) {
+  console.error('НЕТ GEMINI_API_KEY!')
+}
+
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN || process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
-// ========== АДМИНКА - УЖЕ ТВОЙ ID ==========
 const ADMIN_ID = 7959760533
-const isAdmin = (ctx) => ctx.from?.id === ADMIN_ID
-let botEnabled = true
+let enabled = true
 
 bot.command('admin', (ctx) => {
-  if (!isAdmin(ctx)) return
-  ctx.reply(`🔧 Админка:\n/on - включить\n/off - выключить\n/stats - статус`)
+  if (ctx.from.id !== ADMIN_ID) return
+  ctx.reply('/on - вкл\n/off - выкл')
 })
-bot.command('on', (ctx) => {
-  if (!isAdmin(ctx)) return
-  botEnabled = true
-  ctx.reply('✅ Бот включен')
-})
-bot.command('off', (ctx) => {
-  if (!isAdmin(ctx)) return
-  botEnabled = false
-  ctx.reply('❌ Бот выключен для всех')
-})
-bot.command('stats', (ctx) => {
-  if (!isAdmin(ctx)) return
-  ctx.reply(`Статус: ${botEnabled ? 'включен ✅' : 'выключен ❌'}`)
-})
-bot.use((ctx, next) => {
-  if (!botEnabled && !isAdmin(ctx)) return ctx.reply('🔧 Тех. работы')
-  return next()
-})
+bot.command('on', (ctx) => { if(ctx.from.id===ADMIN_ID){enabled=true; ctx.reply('✅ вкл')} })
+bot.command('off', (ctx) => { if(ctx.from.id===ADMIN_ID){enabled=false; ctx.reply('❌ выкл')} })
+bot.use((ctx,next)=>{ if(!enabled && ctx.from.id!==ADMIN_ID) return ctx.reply('тех работы'); return next() })
 
-bot.start((ctx) => ctx.reply('Привет! Скинь домашку фото или текстом'))
-
-bot.on(['text', 'photo', 'document'], async (ctx) => {
+bot.start((ctx) => ctx.reply('Привет! Кидай домашку'))
+bot.on(['text','photo','document'], async (ctx) => {
   if (ctx.message.text?.startsWith('/')) return
   try {
     await ctx.sendChatAction('typing')
-    let contents
+    let contents = ctx.message.text || 'Реши'
     if (ctx.message.photo || ctx.message.document) {
-      let fileId = ctx.message.photo ? ctx.message.photo.pop().file_id : ctx.message.document.file_id
+      const fileId = ctx.message.photo ? ctx.message.photo.pop().file_id : ctx.message.document.file_id
       const link = await ctx.telegram.getFileLink(fileId)
       const buf = Buffer.from(await (await fetch(link.href)).arrayBuffer())
-      contents = [
-        { inlineData: { mimeType: 'image/jpeg', data: buf.toString('base64') } },
-        { text: (ctx.message.caption || 'Реши') + '. Кратко без воды, без LaTeX' }
-      ]
-    } else {
-      contents = `Реши: ${ctx.message.text}`
+      contents = [{inlineData:{mimeType:'image/jpeg', data: buf.toString('base64')}}, {text: 'Реши кратко'}]
     }
-    const res = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-lite',
-      config: { systemInstruction: "Отвечай кратко, без LaTeX, без $" },
-      contents: contents
-    })
-    await ctx.reply(res.text.replace(/\$/g, ''))
-  } catch (e) { console.error(e) }
+    const r = await ai.models.generateContent({ model: 'gemini-2.0-flash-lite', contents: contents })
+    await ctx.reply(r.text.slice(0,4000))
+  } catch(e){ console.error(e); ctx.reply('Ошибка, попробуй еще') }
 })
 
-const port = process.env.PORT || 10000
-http.createServer((req, res) => {
-  res.writeHead(200); res.end('Bot is running')
-}).listen(port, '0.0.0.0')
-
-bot.launch()
-console.log'Бот запущен'
+http.createServer((_,res)=>{res.writeHead(200);res.end('ok')}).listen(process.env.PORT||10000,'0.0.0.0')
+bot.launch().then(()=>console.log('Бот запущен'))
