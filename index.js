@@ -1,11 +1,18 @@
-const { Telegraf } = require('telegraf')
-// Исправленный импорт официального SDK Google Gen AI
-const { GoogleGenAI } = require('@google/genai')
-const http = require('http')
-const sqlite3 = require('sqlite3') // Добавлен модуль базы данных
+const { Telegraf } = require('telegraf');
+const { GoogleGenAI } = require('@google/genai'); 
+const http = require('http');
+const sqlite3 = require('sqlite3'); 
 
-const bot = new Telegraf(process.env.TELEGRAM_TOKEN || process.env.BOT_TOKEN || process.env.TELEGRAM_TOKEN)
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+// Создаем пустой сервер, чтобы Render не закрывал приложение по таймауту
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is running\n');
+}).listen(process.env.PORT || 3000);
+
+// Инициализация бота и AI (Замените токен и ключ, если они были вписаны текстом)
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
 
 const ADMIN_ID = 7959760533
 const SECRET_CODE = 'GEMINI-X99_🔥_d7b8a2c4e1','vip2012' // Промокод для пользователей
