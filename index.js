@@ -17,14 +17,14 @@ bot.on('text', async (ctx) => {
         // Отправляем запрос в нейросеть Gemini 3.8 Flash
     const response = await ai.models.generateContent({
       model: 'gemini-3.5-flash-lite',
-      contents: `Ты — опытный школьный учитель. Подробно, пошагово и понятно реши домашнее задание: ${ctx.message.text}`,
+      contents: `Реши домашнее задание: ${ctx.message.text}`,
     });
 
 
     // Отправляем решение пользователю
     await ctx.reply(response.text);
 
-  } catch (error) {
+  } catch (erro
     console.error(error);
     await ctx.reply(`Произошла ошибка: ${error.message}`);
   }
