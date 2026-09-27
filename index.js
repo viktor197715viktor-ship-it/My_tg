@@ -1,58 +1,77 @@
-const { Telegraf, Markup } = require('telegraf')
+const { Telegraf } = require('telegraf')
 const { GoogleGenAI } = require('@google/genai')
-const http = require('http')
 
-const bot = new Telegraf(process.env.TELEGRAM_TOKEN)
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
-const ADMIN_ID = 7959760533
-let enabled = true
-let users = new Set()
-let totalRequests = 0
 
-function panel() {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback(enabled ? '🟢 ВКЛ' : '🔴 ВЫКЛ', 'toggle')],
-    [Markup.button.callback('📊 Стата', 'stats')]
-  ])
-}
+bot.start((ctx) => ctx.reply(
+  'Привет! Отправь мне домашнее задание (текстом или фото), и я **быстро и кратко** решу его без лишней «воды».',
+  { parse_mode: 'Markdown' }
+))
 
-bot.command('admin', (ctx) => {
-  if (ctx.from.id != ADMIN_ID) return
-  ctx.reply(`Админка: ${enabled ? 'ВКЛ' : 'ВЫКЛ'}\nЮзеров: ${users.size}`, panel())
-})
-bot.action('toggle', async (ctx) => {
-  if (ctx.from.id != ADMIN_ID) return
-  enabled = !enabled
-  await ctx.answerCbQuery(enabled ? 'Включил' : 'Выключил')
-  await ctx.editMessageText(`Админка: ${enabled ? 'ВКЛ' : 'ВЫКЛ'}\nЮзеров: ${users.size}`, panel())
-})
-bot.action('stats', (ctx) => ctx.answerCbQuery(`Юзеров: ${users.size}, Запросов: ${totalRequests}`))
-
-bot.command('on', (ctx) => { if (ctx.from.id == ADMIN_ID) { enabled = true; ctx.reply('✅ вкл') } })
-bot.command('off', (ctx) => { if (ctx.from.id == ADMIN_ID) { enabled = false; ctx.reply('❌ выкл') } })
-bot.use((ctx, next) => {
-  if (ctx.from) users.add(ctx.from.id)
-  if (!enabled && ctx.from.id != ADMIN_ID) return ctx.reply('🔧 тех работы')
-  return next()
-})
-
-bot.start((ctx) => ctx.reply('отправь мне фото или текст я тебе быстро все решу'))
-
-bot.on('message', async (ctx) => {
+// УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК
+bot.on(['text', 'photo', 'document'], async (ctx) => {
   try {
-    if (ctx.message.text?.startsWith('/')) return
     await ctx.sendChatAction('typing')
-    totalRequests++
-    let res
 
-    // ВОТ СЮДА ВСТАВИЛ БЫСТРУЮ МОДЕЛЬ - ДЛЯ ФОТО
-    if (ctx.message.photo) {
-      const fileId = ctx.message.photo.pop().file_id
-      const link = await ctx.telegram.getFileLink(fileId)
-      const buf = Buffer.from(await (await fetch(link.href)).arrayBuffer())
-      res = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-lite', // <-- БЫСТРАЯ МОДЕЛЬ ТУТ
-        contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'image/jpeg', data: buf.toString('base64') } }, { text: 'Реши кратко на русском' }] }]
-      })
-    } else {
-      // И ВОТ СЮДА - ДЛЯ ТЕКСТА
+    let contents;
+
+    // 1. ЕСЛИ ФОТО
+    if (ctx.message.photo || ctx.message.document) {
+      let fileId;
+      if (ctx.message.photo) {
+        fileId = ctx.message.photo[ctx.message.photo.length - 1].file_id
+      } else {
+        fileId = ctx.message.document.file_id
+      }
+
+      const fileLink = await ctx.telegram.getFileLink(fileId)
+      const res = await fetch(fileLink.href)
+      const buffer = await res.arrayBuffer()
+      const base64 = Buffer.from(buffer).toString('base64')
+      
+      const caption = ctx.message.caption || "Реши это домашнее задание"
+
+      contents = [
+        { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+        { text: `${caption}. Реши максимально кратко, без воды. ЗАПРЕЩЕНО LaTeX и символы $ \\times \\frac. Пиши математику обычным текстом: * / + - =` }
+      ]
+    } 
+    // 2. ЕСЛИ ТЕКСТ
+    else {
+      contents = `Реши домашнее задание: ${ctx.message.text}`
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-lite',
+      config: {
+        systemInstruction: "Ты — лаконичный школьный помощник. Отвечай кратко и понятно, без воды и приветствий. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать LaTeX, знаки доллара, команды \\times, \\frac. Пиши математику только обычным текстом.",
+      },
+      contents: contents
+    })
+
+    let answer = response.text
+    // Чистим ответ от $ чтобы не ломал Markdown
+    answer = answer.replace(/\$/g, '')
+
+    await ctx.reply(answer, { parse_mode: 'Markdown' })
+
+  } catch (error) {
+    console.error(error)
+    await ctx.reply('Ошибка :( Попробуй скинуть еще раз, чуть четче фото.')
+  }
+})
+
+// Веб-сервер чтобы Render не спал
+const http = require('http')
+const port = process.env.PORT || 10000
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' })
+  res.end('Bot is running')
+}).listen(port, '0.0.0.0')
+
+bot.launch()
+console.log('Бот запущен')
+
+process.once('SIGINT', () => bot.stop('SIGINT'))
+process.once('SIGTERM', () => bot.stop('SIGTERM'))
