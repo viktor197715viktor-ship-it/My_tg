@@ -5,7 +5,7 @@ const bot = new Telegraf(process.env.TELEGRAM_TOKEN || process.env.BOT_TOKEN)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
 bot.start((ctx) => ctx.reply(
-  'Привет! Отправь мне домашнее задание (текстом или фото), и я **быстро и кратко** решу его без лишней «воды».',
+  'Привет! Отправь мне домашнее задание (текстом или фото), и я **быстро и кратко** решу его .',
   { parse_mode: 'Markdown' }
 ))
 
