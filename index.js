@@ -7,7 +7,16 @@ const ADMIN_ID = 7959760533
 let enabled = true
 const users = new Set()
 const premium = new Set([7959760533]) // ты сразу премиум
-
+    const limits = new Map()
+    function canUse(id){
+      if(premium.has(id)) return {ok:true, left:'∞'}
+      const today = new Date().toDateString()
+      let d = limits.get(id)
+      if(!d || d.date!= today){ d={count:0, date:today}; limits.set(id,d) }
+      if(d.count >= 5) return {ok:false}
+      d.count++
+      return {ok:true, left: 5 - d.count}
+    }
 // СБОР ЮЗЕРОВ
 bot.use((ctx, next) => {
   if (ctx.from) users.add(ctx.from.id)
