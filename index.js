@@ -96,7 +96,7 @@ bot.on(['text', 'photo', 'document'], async (ctx) => {
 
     // Правильный вызов API согласно официальной документации @google/genai
     const res = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-lite',
+      model: 'gemini-3.5-flash-lite',
       config: { 
         systemInstruction: "Отвечай кратко, без LaTeX, без \$" 
       },
