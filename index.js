@@ -16,7 +16,7 @@ bot.on('text', async (ctx) => {
 
         // Отправляем запрос в нейросеть Gemini 3.8 Flash
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-flash-8b',
       contents: `Ты — опытный школьный учитель. Подробно, пошагово и понятно реши домашнее задание: ${ctx.message.text}`,
     });
 
