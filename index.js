@@ -62,8 +62,7 @@ bot.on(['text','photo','document'], async (ctx)=>{
 
     // НОВЫЕ МОДЕЛИ 2026
     let finalText=''
-    const modelsToTry = ['gemini-3.8-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite']
-
+    const modelsToTry = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-1.5-flash']
     for(const m of modelsToTry){
       try{
         const result = await ai.models.generateContent({ model: m, contents: contentsForAI })
