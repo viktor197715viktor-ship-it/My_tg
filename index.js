@@ -89,6 +89,18 @@ bot.on(['text','photo','document'], async (ctx)=>{
     await ctx.reply('Ошибка: '+e.message.slice(0,300))
   }
 })
+const APP_URL = process.env.URL; // URL вашего приложения (например, https://onrender.com)
+
+if (APP_URL) {
+  setInterval(async () => {
+    try {
+      await fetch(APP_URL);
+      console.log('Само-пинг выполнен успешно');
+    } catch (e) {
+      console.error('Ошибка само-пинга:', e.message);
+    }
+  }, 10 * 60 * 1000); // 10 минут в миллисекундах
+}
 
 require('http').createServer((_,res)=>res.end('ok')).listen(process.env.PORT||10000)
 bot.launch()
