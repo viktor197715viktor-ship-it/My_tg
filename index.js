@@ -62,7 +62,13 @@ bot.on(['text','photo','document'], async (ctx)=>{
 
     // НОВЫЕ МОДЕЛИ 2026
     let finalText=''
-    const modelsToTry = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-1.5-flash']
+const modelsToTry = [
+  'gemini-3.8-flash',      // Актуальная флагманская модель 2026 года
+  'gemini-3.8-flash-lite', // Облегченная быстрая модель
+  'gemini-3.7-flash',      // Резервная стабильная модель
+  'gemini-3.6-flash'       // Дополнительный резерв
+]
+
     for(const m of modelsToTry){
       try{
         const result = await ai.models.generateContent({ model: m, contents: contentsForAI })
